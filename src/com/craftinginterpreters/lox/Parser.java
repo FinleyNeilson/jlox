@@ -140,7 +140,21 @@ class Parser {
 
     private Stmt.Function function(String kind) {
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
-        consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+        List<Token> parameters = consumeParameters();
+        List<Stmt> body = block();
+
+        return new Stmt.Function(name, parameters, body);
+    }
+
+    private Expr.Lambda lambda() {
+        List<Token> parameters = consumeParameters();
+        List<Stmt> body = block();
+
+        return new Expr.Lambda(parameters, body);
+    }
+
+    private List<Token> consumeParameters() {
+        consume(LEFT_PAREN, "Expect '(' in lambda.");
         List<Token> parameters = new ArrayList<>();
         if (!check(RIGHT_PAREN)) {
             do {
@@ -153,10 +167,9 @@ class Parser {
             } while (match(COMMA));
         }
         consume(RIGHT_PAREN, "Expect ')' after parameters.");
+        consume(LEFT_BRACE, "Expect '{' before function body.");
 
-        consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
-        List<Stmt> body = block();
-        return new Stmt.Function(name, parameters, body);
+        return parameters;
     }
 
     private List<Stmt> block() {
@@ -218,7 +231,11 @@ class Parser {
 
     private Stmt declaration() {
         try {
-            if (match(FUN)) return function("function");
+            // Only consume FUN if it's followed by an IDENTIFIER
+            if (check(FUN) && checkNext(IDENTIFIER)) {
+                advance();
+                return function("function");
+            }
             if (match(VAR)) return varDeclaration();
 
             return statement();
@@ -303,6 +320,10 @@ class Parser {
             return new Expr.Literal(previous().literal());
         }
 
+        if (match(FUN)) {
+            return lambda();
+        }
+
         if (match(IDENTIFIER)) {
             return new Expr.Variable(previous());
         }
@@ -363,6 +384,12 @@ class Parser {
     private boolean check(TokenType type) {
         if (isAtEnd()) return false;
         return peek().type() == type;
+    }
+
+    private boolean checkNext(TokenType type) {
+        if (isAtEnd()) return false;
+        if (current + 1 >= tokens.size()) return false;
+        return tokens.get(current + 1).type() == type;
     }
 
     private Token advance() {
