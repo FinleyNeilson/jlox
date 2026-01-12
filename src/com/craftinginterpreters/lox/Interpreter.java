@@ -98,6 +98,11 @@ class Interpreter implements Expr.Visitor<Object>,
     }
 
     @Override
+    public Object visitLambdaExpr(Expr.Lambda expr) {
+        return new LoxFunction(expr, environment);
+    }
+
+    @Override
     public Void visitIfStmt(Stmt.If stmt) {
         if (isTruthy(evaluate(stmt.condition))) {
             execute(stmt.thenBranch);

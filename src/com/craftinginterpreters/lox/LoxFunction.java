@@ -3,28 +3,39 @@ package com.craftinginterpreters.lox;
 import java.util.List;
 
 class LoxFunction implements LoxCallable {
-    private final Stmt.Function declaration;
+    private final Token name;  // null for lambdas
+    private final List<Token> params;
+    private final List<Stmt> body;
     private final Environment closure;
 
     LoxFunction(Stmt.Function declaration, Environment closure) {
+        this.name = declaration.name;
+        this.params = declaration.params;
+        this.body = declaration.body;
         this.closure = closure;
-        this.declaration = declaration;
+    }
+
+    LoxFunction(Expr.Lambda declaration, Environment closure) {
+        this.name = null;
+        this.params = declaration.params;
+        this.body = declaration.body;
+        this.closure = closure;
     }
 
     @Override
     public Object call(Interpreter interpreter, List<Object> arguments) {
         // Create a new environment for each call and pass the global environment
-         Environment environment = new Environment(closure);
+        Environment environment = new Environment(closure);
         // For each parameter in the function add the argument to the identifier
-        for (int i = 0; i < declaration.params.size(); i++) {
-            environment.define(declaration.params.get(i).lexeme(),
+        for (int i = 0; i < params.size(); i++) {
+            environment.define(params.get(i).lexeme(),
                     arguments.get(i));
         }
 
         // Execute the block of code and use the Return exception to unwind back to here
         // if the interpreter hits a return
         try {
-            interpreter.executeBlock(declaration.body, environment);
+            interpreter.executeBlock(body, environment);
         } catch (Return returnValue) {
             return returnValue.value;
         }
@@ -33,11 +44,14 @@ class LoxFunction implements LoxCallable {
 
     @Override
     public int arity() {
-        return declaration.params.size();
+        return params.size();
     }
 
     @Override
     public String toString() {
-        return "<fn " + declaration.name.lexeme() + ">";
+        if (name != null) {
+            return "<fn " + name.lexeme() + ">";
+        }
+        return "<lambda>";
     }
 }
